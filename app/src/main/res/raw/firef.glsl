@@ -1,60 +1,83 @@
+// Определение точности для плавающих точек в шейдере (для высокоточных вычислений)
 precision highp float;
 
+// Входная переменная для времени, которая используется для анимации
 varying float v_time;
 
+// Функция для вычисления Signed Distance Function (SDF) для круга с центром в точке p и радиусом r
+// Возвращает расстояние от точки до границы круга (отрицательное значение — внутри круга)
 float sdfCircle(vec2 p, float r) {
-    return length(p) - r;
+    return length(p) - r; // Возвращает разницу между расстоянием и радиусом
 }
 
+// Простая хэш-функция для генерации случайных значений на основе входных данных
+// Использует метод с фрактальными множителями и функции сглаживания
 vec2 hash(vec2 x) {
-    const vec2 k = vec2(0.3183099, 0.3678794);
-    x = x * k + k.yx;
-    return -1.0 + 2.0 * fract(16.0 * k * fract(x.x * x.y * (x.x + x.y)));
+    const vec2 k = vec2(0.3183099, 0.3678794); // Константы для хэширования
+    x = x * k + k.yx; // Преобразование входного вектора
+    return -1.0 + 2.0 * fract( 16.0 * k * fract(x.x * x.y * (x.x + x.y))); // Генерация случайных значений
 }
 
-float noise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    vec2 u = f * f * (3.0 - 2.0 * f);
+// Основная функция, которая генерирует шум на основе позиции p
+// Возвращает вектор с шумом для дальнейшего использования в вычислениях
+vec3 calcNoise(vec2 p) {
+    vec2 i = floor( p ); // Округление координат для создания сетки
+    vec2 f = fract( p ); // Остаток от деления для сглаживания
+    vec2 u = f*f*(3.0-2.0*f); // Используется для сглаживания переходов
+    vec2 du = 6.0*f*(1.0-f); // Градиенты для повышения точности
+    vec2 ga = hash( i + vec2(0.0,0.0) ); // Получение случайных значений для соседей
+    vec2 gb = hash( i + vec2(1.0,0.0) );
+    vec2 gc = hash( i + vec2(0.0,1.0) );
+    vec2 gd = hash( i + vec2(1.0,1.0) );
 
-    float va = dot(hash(i + vec2(0.0, 0.0)), f - vec2(0.0, 0.0));
-    float vb = dot(hash(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0));
-    float vc = dot(hash(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0));
-    float vd = dot(hash(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0));
+    // Вычисление "влияния" соседних точек с учетом координат
+    float va = dot( ga, f - vec2(0.0,0.0) );
+    float vb = dot( gb, f - vec2(1.0,0.0) );
+    float vc = dot( gc, f - vec2(0.0,1.0) );
+    float vd = dot( gd, f - vec2(1.0,1.0) );
 
-    return va + u.x * (vb - va) + u.y * (vc - va) + u.x * u.y * (va - vb - vc + vd);
-}
-
-float fbm(vec2 p) {
-    float value = 0.0;
-    float amplitude = 0.5;
-    float frequency = 1.0;
-    for (int i = 0; i < 5; i++) {
-        value += amplitude * noise(p * frequency);
-        frequency *= 2.0;
-        amplitude *= 0.5;
-    }
-    return value;
+    // Комбинированный результат для всех соседей
+    return vec3( va + u.x*(vb-va) + u.y*(vc-va) + u.x*u.y*(va-vb-vc+vd),
+    ga + u.x*(gb-ga) + u.y*(gc-ga) + u.x*u.y*(ga-gb-gc+gd) +
+    du * (u.yx*(va-vb-vc+vd) + vec2(vb,vc) - va)); // Возвращение окончательного шума
 }
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / vec2(800.0, 600.0); // Нормализация координат
-    uv.y -= v_time * 0.1; // Анимация огня
+    float octaves = 8.0; // Количество октав для шума (для более сложных текстур)
 
-    // Шум для пламени
-    float n = fbm(uv * 3.0);
-    n = pow(n, 3.0); // Усиливаем контраст
+    // Генерация шума с использованием координат точки и времени для анимации
+    float noiseAmount = calcNoise(vec2(octaves * gl_PointCoord.x, octaves * gl_PointCoord.y + v_time * 0.1)).x;
 
-    // Цветовая градация для огня
-    vec3 color = vec3(1.0, 0.5, 0.0) * n; // Оранжевый базовый
-    color = mix(color, vec3(1.0, 0.2, 0.0), n); // Плавный переход
+    // Градиент по оси y для получения плавного перехода (например, для тени)
+    float yGradient = clamp(0.7 - gl_PointCoord.y, 0.0, 1.0) * 0.6;
 
-    // Добавляем дым
-    float smoke = smoothstep(0.3, 0.8, n) * 0.5;
-    color += vec3(0.2, 0.2, 0.2) * smoke;
+    // Влияние шума на координаты (вектор сдвига)
+    vec2 sdfNoise = vec2(noiseAmount * 0.1, noiseAmount * 2.5 * yGradient);
 
-    // Затухание кверху
-    color *= smoothstep(1.0, 0.0, uv.y);
+    // Пересчитывание позиций для трех кругов (с учетом шума)
+    vec2 p1 = (gl_PointCoord - vec2(0.5, 0.7)) + sdfNoise;
+    vec2 p2 = (gl_PointCoord - vec2(0.5, 0.775)) + sdfNoise;
+    vec2 p3 = (gl_PointCoord - vec2(0.5, 0.85)) + sdfNoise;
 
-    gl_FragColor = vec4(color, 1.0);
+    // Применение SDF для трех кругов (внешний, средний и центральный)
+    float amountOuter = step(sdfCircle(p1, 0.25), 0.0); // Внешний круг
+    float amountInner = step(sdfCircle(p2, 0.175), 0.0); // Средний круг
+    float amountCenter = step(sdfCircle(p3, 0.1), 0.0); // Центральный круг
+
+    // Цвета для каждого из кругов
+    vec3 outer = vec3(1, 0.5, 0) * amountOuter; // Оранжевый для внешнего круга
+    vec3 inner = vec3(1, 1, 0) * amountInner; // Желтый для среднего круга
+    vec3 center = vec3(1, 1, 1) * amountCenter; // Белый для центрального круга
+
+    // Комбинированный цвет для фрагмента
+    vec4 color = vec4(outer + inner + center, amountOuter);
+
+    // Если цвет равен 0 (нет фрагмента), устанавливаем прозрачность
+    if (color.r <= 0.0) {
+        gl_FragColor = vec4(0, 0, 0, 0); // Прозрачный фрагмент
+        return; // Завершаем выполнение шейдера
+    }
+
+    // Устанавливаем финальный цвет фрагмента
+    gl_FragColor = color; // Отображение финального цвета
 }

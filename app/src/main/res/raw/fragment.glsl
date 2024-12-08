@@ -19,6 +19,5 @@ void main() {
     float k_specular=0.5;
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
     vec3 specular = specularStrength * spec * u_lightColor;
-    gl_FragColor = vec4(ambient + diffuse + specular, 1.0) *
-    texture2D(u_TextureUnit, v_TexCord);
+    gl_FragColor = vec4(ambient + diffuse + specular, 1.0) * texture2D(u_TextureUnit, v_TexCord);
 }
