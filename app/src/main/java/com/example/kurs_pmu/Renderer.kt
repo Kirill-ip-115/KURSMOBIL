@@ -16,7 +16,7 @@ import javax.microedition.khronos.opengles.GL10
 class Renderer(private val context: Context) : GLSurfaceView.Renderer {
 
     private val cameraPos = floatArrayOf(0.0f, 1.5f, 2.7f)
-    private val lightPos = floatArrayOf(0.0f, 0.55f, 1.025f)
+    private val lightPos = floatArrayOf(-0.07f, 0.55f, 1.025f)
     private val mMVPMatrix = FloatArray(16)
     private val mMMatrix = FloatArray(16)
     private val mVMatrix = FloatArray(16)
@@ -32,7 +32,7 @@ class Renderer(private val context: Context) : GLSurfaceView.Renderer {
 
     init {
         Matrix.setLookAtM(mVMatrix, 0, cameraPos[0], cameraPos[1], cameraPos[2], 0f, 0f, 0f, 0f, 1f, 0f)
-        loadModels(intArrayOf(R.raw.table, R.raw.app, R.raw.ba, R.raw.le, R.raw.pu, R.raw.cup, R.raw.plo, R.raw.svet))
+        loadModels(intArrayOf(R.raw.table, R.raw.app, R.raw.ba, R.raw.le, R.raw.pu, R.raw.cup, R.raw.plo, R.raw.candle))
     }
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
@@ -62,8 +62,7 @@ class Renderer(private val context: Context) : GLSurfaceView.Renderer {
                 R.drawable.lemon,
                 R.drawable.pu,
                 R.drawable.cup,
-                R.drawable.w,
-                R.drawable.svet
+                R.drawable.w
             ),  gl ?: return
         )
     }
@@ -131,22 +130,21 @@ class Renderer(private val context: Context) : GLSurfaceView.Renderer {
 
 
         // Draw Table
-       drawScaledTranslatedModel(0, 0, gl, 0.6f, 0.6f, 0.6f, 0.0f, 0f, 0f)
+        drawScaledTranslatedModel(0, 0, gl, 0.6f, 0.6f, 0.6f, 0.0f, 0f, 0f)
          //Draw APPLE
-        //drawScaledTranslatedModel(1, 1, gl, 3f, 3f, 3f, 0.1f, 0.02f, -0.1f)
+        drawScaledTranslatedModel(1, 1, gl, 3f, 3f, 3f, 0.1f, 0.02f, -0.1f)
          //Draw Banan
-       // drawScaledTranslatedModel(2, 2, gl, 2f, 2f, 2f, 0.15f, 0.05f, 0.15f)
+        drawScaledTranslatedModel(2, 2, gl, 2f, 2f, 2f, 0.15f, 0.05f, 0.15f)
 
-        //drawScaledTranslatedModel(3, 3, gl, 2f, 2f, 2f, -0.15f, 0.06f, 0.15f)
+        drawScaledTranslatedModel(3, 3, gl, 2f, 2f, 2f, -0.15f, 0.06f, 0.15f)
 
-       // drawScaledTranslatedModel(4, 4, gl, 2f, 2f, 2f, 0.05f, 0.1f, 0.1f)
+        drawScaledTranslatedModel(4, 4, gl, 2f, 2f, 2f, 0.05f, 0.1f, 0.1f)
         // CUP
-        //drawScaledTranslatedModel(5, 5, gl, 0.1f, 0.1f, 0.1f, -2f, 0.6f, -2f)
-            //Matrix.setIdentityM(mMMatrix, 0)
-        //Matrix.scaleM(mMMatrix, 0, 1f, 1f, 1f)
-        //drawModel(6, 6, gl)
+        drawScaledTranslatedModel(5, 5, gl, 0.1f, 0.1f, 0.1f, -2f, 0.6f, -2f)
+        Matrix.scaleM(mMMatrix, 0, 1f, 1f, 1f)
+        drawModel(6, 6, gl)
 
-            //drawScaledTranslatedModel(7, 7, gl, 0.08f, 0.08f, 0.08f, 0f, 0f, 0f)
+        drawScaledTranslatedModel(7, 5, gl, 2f, 2f, 0.8f, 0f, 0.14f, 0f)
 
     }
 
