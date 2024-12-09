@@ -5,7 +5,7 @@ import java.nio.FloatBuffer
 
 class Shader(vertexShaderString: String, fragmentShaderString: String) {
 
-    private var programHandle: Int = 0
+    var programHandle: Int = 0
 
     init {
         createShader(vertexShaderString, fragmentShaderString)

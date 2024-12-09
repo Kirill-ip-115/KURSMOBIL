@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.res.Resources
 import android.graphics.BitmapFactory
 import android.opengl.*
+import android.util.Log
 import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStreamReader
@@ -16,7 +17,7 @@ import javax.microedition.khronos.opengles.GL10
 class Renderer(private val context: Context) : GLSurfaceView.Renderer {
 
     private val cameraPos = floatArrayOf(0.0f, 1.5f, 2.7f)
-    private val lightPos = floatArrayOf(0.0f, 1f, 1.025f)
+    private val lightPos = floatArrayOf(0.0f, 0.7f, 0f)
     private val mMVPMatrix = FloatArray(16)
     private val mMMatrix = FloatArray(16)
     private val mVMatrix = FloatArray(16)
@@ -32,7 +33,7 @@ class Renderer(private val context: Context) : GLSurfaceView.Renderer {
 
     init {
         Matrix.setLookAtM(mVMatrix, 0, cameraPos[0], cameraPos[1], cameraPos[2], 0f, 0f, 0f, 0f, 1f, 0f)
-        loadModels(intArrayOf(R.raw.table, R.raw.app, R.raw.ba, R.raw.le, R.raw.pu, R.raw.cup, R.raw.plo, R.raw.candle))
+        loadModels(intArrayOf(R.raw.table, R.raw.app, R.raw.ba, R.raw.le, R.raw.pomegranate, R.raw.cup, R.raw.plo, R.raw.candle, R.raw.flamet))
     }
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
@@ -60,9 +61,10 @@ class Renderer(private val context: Context) : GLSurfaceView.Renderer {
                 R.drawable.ap,
                 R.drawable.ban,
                 R.drawable.lemon,
-                R.drawable.pu,
+                R.drawable.pomegranate,
                 R.drawable.cup,
-                R.drawable.w
+                R.drawable.w,
+                R.drawable.fire
             ),  gl ?: return
         )
     }
@@ -102,43 +104,57 @@ class Renderer(private val context: Context) : GLSurfaceView.Renderer {
 
         Matrix.setIdentityM(mMMatrix, 0)
 
-        val p: FloatBuffer = ByteBuffer.allocateDirect(lightPos.size * 4)
-            .order(ByteOrder.nativeOrder())
-            .asFloatBuffer().apply {
-                put(lightPos)
-                position(0)
-            }
+        //flame
 
-        fire.linkVertex(p, "position", 4)
-        fire.linkUniform1f(time, "time")
-        fire.linkMatrix(mMMatrix, "model")
-        fire.linkMatrix(mVMatrix, "view")
-        fire.linkMatrix(mProjMatrix, "projection")
 
-        time += 2.0f
-
-        GLES20.glEnable(GLES20.GL_BLEND)
-        GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
-        GLES20.glDrawArrays(GLES20.GL_POINTS, 0, 1)
 
 
         // Draw Table
-        drawScaledTranslatedModel(0, 0, gl, 0.6f, 0.6f, 0.6f, 0.0f, 0f, 0f)
+        drawScaledTranslatedModel(0, 0, gl, 0.9f, 0.6f, 0.6f, 0.0f, 0f, 0f)
         //Draw APPLE
         drawScaledTranslatedModel(1, 1, gl, 3f, 3f, 3f, 0.1f, 0.02f, -0.1f)
         //Draw Banan
         drawScaledTranslatedModel(2, 2, gl, 2f, 2f, 2f, 0.15f, 0.05f, 0.0f)
-
+        //lemon
         drawScaledTranslatedModel(3, 3, gl, 2f, 2f, 2f, -0.2f, 0.06f, 0.15f)
 
-        drawScaledTranslatedModel(4, 4, gl, 2f, 2f, 2f, 0.15f, 0.1f, 0.15f)
+        drawScaledTranslatedModel(4, 4, gl, 0.15f, 0.15f, 0.15f, 3f, 1f, 2.5f)
         // CUP
-        drawScaledTranslatedModel(5, 5, gl, 0.1f, 0.1f, 0.1f, -2.5f, 0.6f, -2.5f)
+        drawScaledTranslatedModel(5, 5, gl, 0.05f, 0.1f, 0.05f, -7f, 0.6f, -2.5f)
         Matrix.scaleM(mMMatrix, 0, 1f, 1f, 1f)
         drawModel(6, 6, gl)
 
         drawScaledTranslatedModel(7, 5, gl, 2f, 2f, 0.8f, 0f, 0.14f, 0f)
 
+        drawFlame(8, 7, gl, 0.025f, 0.025f, 0.025f, 0f, 18f, 0f)
+    }
+
+    private fun drawFlame(index: Int, subIndex: Int, gl: GL10?, sx: Float, sy: Float, sz: Float, tx: Float, ty: Float, tz: Float) {
+        Matrix.setIdentityM(mMMatrix, 0)
+        Matrix.scaleM(mMMatrix, 0, sx, sy, sz)
+        Matrix.translateM(mMMatrix, 0, tx, ty, tz)
+
+        // Генерация случайного цвета для пламени
+        val lightColor = floatArrayOf(1.0f, 0.5f + (Math.random() * 0.15).toFloat(), 0.3f)
+
+        // Передача данных о вершинах, текстуре и нормалях
+        fire.linkVertex(models[index][0], "a_vertex", 3)
+        fire.linkMatrix(mMMatrix, "model")
+        fire.linkMatrix(mVMatrix, "view")
+        fire.linkMatrix(mProjMatrix, "projection")
+        fire.linkVertex(models[index][1], "a_TexCord", 2)
+        fire.linkVertex(models[index][2], "a_normal", 3)
+        fire.linkUniform3f(cameraPos, "u_camera")
+        fire.linkUniform3f(lightPos, "u_lightPosition")
+        fire.linkUniform3f(lightColor, "u_lightColor")
+        fire.linkUniform1i(subIndex, "u_TextureUnit")
+
+        // Передача времени для анимации
+        val time = System.nanoTime() / 1000000000.0f  // Время в секундах
+        fire.linkUniform1f(time, "u_time")
+
+        // Отрисовка объекта
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, numFaces[index])
     }
 
     private fun drawScaledTranslatedModel(index: Int, subIndex: Int, gl: GL10?, sx: Float, sy: Float, sz: Float, tx: Float, ty: Float, tz: Float) {
@@ -149,7 +165,7 @@ class Renderer(private val context: Context) : GLSurfaceView.Renderer {
     }
 
     private fun drawModel(modelId: Int, textureId: Int, gl: GL10?) {
-        val lightColor = floatArrayOf(1f, 1f, 1f)
+        val lightColor = floatArrayOf(1.0f, 0.5f + (Math.random() * 0.10).toFloat(), 0.3f)
 
         shader.linkVertex(models[modelId][0], "a_vertex", 3)
         shader.linkMatrix(mMMatrix, "model")
@@ -183,6 +199,23 @@ class Renderer(private val context: Context) : GLSurfaceView.Renderer {
         }
         return stringBuilder.toString()
     }
+
+    fun checkShaderStatus(shader: Int, isProgram: Boolean) {
+        val status = IntArray(1)
+        if (isProgram) {
+            GLES20.glGetProgramiv(shader, GLES20.GL_LINK_STATUS, status, 0)
+        } else {
+            GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, status, 0)
+        }
+
+        if (status[0] == 0) {
+            val log = if (isProgram) GLES20.glGetProgramInfoLog(shader)
+            else GLES20.glGetShaderInfoLog(shader)
+            Log.e("ShaderError", log)
+            throw RuntimeException("Shader compilation/linking failed: $log")
+        }
+    }
+
 
     private fun loadModels(modelsId: IntArray) {
         var ind = 0
@@ -221,7 +254,16 @@ class Renderer(private val context: Context) : GLSurfaceView.Renderer {
         gl.glGenTextures(resourceId.size, textureIds, 0)
 
         for (i in textureIds.indices) {
-            val bmp = BitmapFactory.decodeResource(context.resources, resourceId[i])
+            val options = BitmapFactory.Options().apply {
+                inScaled = true
+                inSampleSize = 2 // Уменьшение размера для экономии памяти
+            }
+            val bmp = BitmapFactory.decodeResource(context.resources, resourceId[i], options)
+
+            if (bmp == null) {
+                Log.e("Renderer", "Failed to decode resource: ${resourceId[i]}")
+                continue
+            }
 
             GLES20.glActiveTexture(GLES20.GL_TEXTURE0 + i)
             GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureIds[i])
@@ -236,4 +278,5 @@ class Renderer(private val context: Context) : GLSurfaceView.Renderer {
             bmp.recycle()
         }
     }
+
 }
